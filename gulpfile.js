@@ -21,73 +21,58 @@ const help = require('gulp-help');
 // gulp-help monkeypatches tasks to have an additional description parameter
 const gulp = help(_gulp);
 
-var runSequence = require('run-sequence');
+const jsdoc = require('gulp-jsdoc3');
+const jshint = require('gulp-jshint');
+const mocha = require('gulp-mocha');
+const execa = require('execa');
+const path = require('path');
+const del = require('del');
 
-require('./packages/grpc-health-check/gulpfile');
-require('./packages/grpc-js/gulpfile');
-require('./packages/grpc-js-core/gulpfile');
-require('./packages/grpc-native/gulpfile');
-require('./packages/grpc-native-core/gulpfile');
-require('./packages/grpc-surface/gulpfile');
-require('./test/gulpfile');
+const nativeCoreDir = __dirname;
+const srcDir = path.resolve(nativeCoreDir, 'src');
+const testDir = path.resolve(nativeCoreDir, 'test');
 
-const root = __dirname;
+const pkg = require('./package');
+const jshintConfig = pkg.jshintConfig;
 
-gulp.task('install.all', 'Install dependencies for all subdirectory packages',
-          ['js.core.install', 'native.core.install', 'surface.install', 'health-check.install', 'internal.test.install']);
-
-gulp.task('install.all.windows', 'Install dependencies for all subdirectory packages for MS Windows',
-          ['js.core.install', 'native.core.install.windows', 'surface.install', 'health-check.install', 'internal.test.install']);
-
-gulp.task('lint', 'Emit linting errors in source and test files',
-          ['js.core.lint', 'native.core.lint']);
-
-gulp.task('build', 'Build packages', ['js.core.compile', 'native.core.build']);
-
-gulp.task('core.link', 'Add links to core packages without rebuilding',
-          ['js.link.add', 'native.link.add']);
-
-gulp.task('surface.link', 'Link to surface packages',
-          ['health-check.link.add']);
-
-gulp.task('link', 'Link together packages', (callback) => {
-  /* Currently, the target 'surface.link.create' doesn't work properly, and it
-   * is also not needed for the existing tests. The comment indicates where it
-   * belongs in the sequence. See npm/npm#18835 for the primary problem with it.
-   * This also means that 'core.link' is not needed, and the item
-   * 'native.core.link.create' should actually be 'core.link.create'
-   */
-  runSequence('core.link', 'surface.link',
-              callback);
+gulp.task('native.core.clean', 'Delete generated files', () => {
+  return del([path.resolve(nativeCoreDir, 'build'),
+	      path.resolve(nativeCoreDir, 'ext/node')]);
 });
 
-gulp.task('setup', 'One-time setup for a clean repository', (callback) => {
-  runSequence('install.all', 'link', callback);
-});
-gulp.task('setup.windows', 'One-time setup for a clean repository for MS Windows', (callback) => {
-  runSequence('install.all.windows', 'link', callback);
-});
+gulp.task('native.core.clean.all', 'Delete all files created by tasks',
+	  ['native.core.clean']);
 
-gulp.task('clean', 'Delete generated files', ['js.core.clean', 'native.core.clean']);
-
-gulp.task('clean.all', 'Delete all files created by tasks',
-	  ['js.core.clean.all', 'native.core.clean.all', 'health-check.clean.all',
-	   'internal.test.clean.all', 'js.clean.all', 'native.clean.all']);
-
-gulp.task('native.test.only', 'Run tests of native code without rebuilding anything',
-          ['native.core.test', 'internal.test.test', 'health-check.test']);
-
-gulp.task('native.test', 'Run tests of native code', (callback) => {
-  runSequence('build', 'native.test.only', callback);
+gulp.task('native.core.install', 'Install native core dependencies', () => {
+  return execa('npm', ['install', '--build-from-source', '--unsafe-perm'],
+               {cwd: nativeCoreDir, stdio: 'inherit'});
 });
 
-gulp.task('test.only', 'Run tests without rebuilding anything',
-          ['js.core.test', 'native.test.only']);
-
-gulp.task('test', 'Run all tests', (callback) => {
-  runSequence('build', 'test.only', callback);
+gulp.task('native.core.install.windows', 'Install native core dependencies for MS Windows', () => {
+  return execa('npm', ['install', '--build-from-source'],
+               {cwd: nativeCoreDir, stdio: 'inherit'}).catch(() => 
+del(path.resolve(process.env.USERPROFILE, '.node-gyp', process.versions.node, 'include/node/openssl'), { force: true }).then(() =>
+execa('npm', ['install', '--build-from-source'],
+               {cwd: nativeCoreDir, stdio: 'inherit'})
+               ))
 });
 
-gulp.task('doc.gen', 'Generate documentation', ['native.core.doc.gen']);
+gulp.task('native.core.lint', 'Emits linting errors', () => {
+  return gulp.src([`${nativeCoreDir}/index.js`, `${srcDir}/*.js`, `${testDir}/*.js`])
+      .pipe(jshint(pkg.jshintConfig))
+      .pipe(jshint.reporter('default'));
+});
 
-gulp.task('default', ['help']);
+gulp.task('native.core.build', 'Build native package', () => {
+  return execa('npm', ['run', 'build'], {cwd: nativeCoreDir, stdio: 'inherit'});
+});
+
+gulp.task('native.core.test', 'Run all tests', ['native.core.build'], () => {
+  return gulp.src(`${testDir}/*.js`).pipe(mocha({reporter: 'mocha-jenkins-reporter'}));
+});
+
+gulp.task('native.core.doc.gen', 'Generate docs', (cb) => {
+  var config = require('./jsdoc_conf.json');
+  gulp.src([`${nativeCoreDir}/README.md`, `${nativeCoreDir}/index.js`, `${srcDir}/*.js`], {read: false})
+      .pipe(jsdoc(config, cb));
+});
