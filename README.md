@@ -1,38 +1,39 @@
-[![Build Status](https://travis-ci.org/grpc/grpc-node.svg?branch=master)](https://travis-ci.org/grpc/grpc-node)
-# gRPC on Node.js
+[![npm](https://img.shields.io/npm/v/grpc.svg)](https://www.npmjs.com/package/grpc)
+# Node.js gRPC Library
 
-## Implementations
+## PREREQUISITES
+- `node`: This requires `node` to be installed, version `4.0` or above. If you instead have the `nodejs` executable on Debian, you should install the [`nodejs-legacy`](https://packages.debian.org/sid/nodejs-legacy) package.
 
-### C-based Client and Server
+- **Note:** If you installed `node` via a package manager and the version is still less than `4.0`, try directly installing it from [nodejs.org](https://nodejs.org).
 
-Directory: [`packages/grpc-native-core`](https://github.com/grpc/grpc-node/tree/master/packages/grpc-native-core) (see here for installation information)
+## INSTALLATION
 
-npm package: [grpc](https://www.npmjs.com/package/grpc).
+Install the gRPC NPM package
 
-This is the existing, feature-rich implementation of gRPC using a C++ addon. It works on all LTS versions of Node.js on most platforms that Node.js runs on.
+```sh
+npm install grpc
+```
 
-### Pure JavaScript Client
+## BUILD FROM SOURCE
+ 1. Clone [the grpc Git Repository](https://github.com/grpc/grpc).
+ 2. Run `npm install --build-from-source` from the repository root.
 
-Directory: [`packages/grpc-js-core`](https://github.com/grpc/grpc-node/tree/master/packages/grpc-js-core)
+ - **Note:** On Windows, this might fail due to [nodejs issue #4932](https://github.com/nodejs/node/issues/4932) in which case, you will see something like the following in `npm install`'s output (towards the very beginning):
 
-**This library is currently incomplete and experimental, built on the [experimental http2 Node module](https://nodejs.org/api/http2.html).**
+    ```
+     ..
+     Building the projects in this solution one at a time. To enable parallel build, please add the "/m" switch.
+     WINDOWS_BUILD_WARNING
+      "..\IMPORTANT: Due to https:\github.com\nodejs\node\issues\4932, to build this library on Windows, you must first remove C:\Users\jenkins\.node-gyp\4.4.0\include\node\openssl"
+      ...
+      ..
+    ```
 
-This library implements the core functionality of gRPC purely in JavaScript, without a C++ addon. It works on the latest version of Node.js (with the `--expose-http2` flag set) on all platforms that Node.js runs on.
+    To fix this, you will have to delete the folder `C:\Users\<username>\.node-gyp\<node_version>\include\node\openssl` and retry `npm install`
 
-## Other Packages
+## API DOCUMENTATION
 
-### gRPC Tools
+See the [API Documentation](https://grpc.io/grpc/node/).
 
-Directory: `packages/grpc-tools`
-
-npm package: [grpc-tools](https://www.npmjs.com/package/grpc-tools)
-
-Distribution of protoc and the gRPC Node protoc plugin for ease of installation with npm.
-
-### gRPC Health Check Service
-
-Directory: `packages/grpc-health-check`
-
-npm package: [grpc-health-check](https://www.npmjs.com/package/grpc-health-check)
-
-Health check service for gRPC servers.
+## TESTING
+To run the test suite, simply run `npm test` in the install location.
